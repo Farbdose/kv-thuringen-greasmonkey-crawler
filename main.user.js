@@ -583,6 +583,14 @@
 
         const $ = (sel) => modal.querySelector(sel);
 
+        function updateItemFromDb(id, rec) {
+            const idx = items.findIndex(r => r.id === id);
+            if (idx === -1) return;
+            const next = { ...rec };
+            ensureRecordHasNewFields(next);
+            items[idx] = next;
+        }
+
         function applyFilter(arr) {
             const f = filterText.trim().toLowerCase();
             let out = arr;
@@ -696,6 +704,7 @@
                 rec.status = null;
                 rec.statusUpdatedAt = new Date().toISOString();
                 saveDB(dbNow);
+                updateItemFromDb(id, rec);
                 // Optional: UI-Note ausblenden -> am einfachsten rerendern
                 render();
                 return;
@@ -711,6 +720,7 @@
             rec.statusUpdatedAt = new Date().toISOString();
             saveDB(dbNow);
 
+            updateItemFromDb(id, rec);
             render();
         });
 
