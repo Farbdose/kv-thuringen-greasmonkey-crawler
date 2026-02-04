@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche Psychologen – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.0.0
+// @version      3.0.1
 // @updateURL    https://raw.githubusercontent.com/kv-thuringen/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/kv-thuringen/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -583,6 +583,45 @@
 
         const $ = (sel) => modal.querySelector(sel);
 
+        function updateItemFromDb(id, rec) {
+            const idx = items.findIndex(r => r.id === id);
+            if (idx === -1) return;
+            const next = { ...rec };
+            ensureRecordHasNewFields(next);
+            items[idx] = next;
+        }
+
+        function refreshCounts() {
+            const filtered = applyFilter(items);
+            $("#psCount").textContent = `(${items.length} Einträge)`;
+            $("#psMsg").textContent = (filterNow || filterText.trim() || filterStatus !== "ALL")
+                ? `${filtered.length} Treffer`
+                : "";
+        }
+
+        function updateRowUi(id, rec) {
+            const row = modal.querySelector(`[data-ps-row="${CSS.escape(id)}"]`);
+            if (!row) return;
+
+            const noteEl = row.querySelector("[data-ps-note]");
+            const metaEl = row.querySelector("[data-ps-meta]");
+
+            if (noteEl) {
+                noteEl.textContent = rec.status?.note || "";
+                noteEl.style.display = rec.status?.note ? "block" : "none";
+            }
+            if (metaEl) {
+                metaEl.textContent = rec.statusUpdatedAt
+                    ? new Date(rec.statusUpdatedAt).toLocaleString()
+                    : "";
+                metaEl.style.display = rec.statusUpdatedAt ? "block" : "none";
+            }
+
+            const shouldShow = applyFilter([rec]).length > 0;
+            row.style.display = shouldShow ? "" : "none";
+            refreshCounts();
+        }
+
         function applyFilter(arr) {
             const f = filterText.trim().toLowerCase();
             let out = arr;
@@ -626,7 +665,7 @@
             $("#psCount").textContent = `(${items.length} Einträge)`;
             $("#psMsg").textContent = (filterNow || filterText.trim() || filterStatus !== "ALL")
                 ? `${filtered.length} Treffer`
-        : "";
+                : "";
 
             const body = $("#psBody");
             body.innerHTML = filtered.map(r => {
@@ -644,19 +683,15 @@
   </select>
 `;
 
-              const stNote = r.status?.note
-              ? `<div style="margin-top:6px; opacity:.8; font-size:12px; white-space:pre-wrap;">${esc(r.status.note)}</div>`
-  : "";
-
-              const stMeta = r.statusUpdatedAt
-              ? `<div style="margin-top:4px; opacity:.55; font-size:12px;">${esc(new Date(r.statusUpdatedAt).toLocaleString())}</div>`
-  : "";
-
-              const st = stSelect + stNote + stMeta;
+              const stNote = r.status?.note || "";
+              const stMeta = r.statusUpdatedAt ? new Date(r.statusUpdatedAt).toLocaleString() : "";
+              const st = stSelect +
+                `<div data-ps-note style="margin-top:6px; opacity:.8; font-size:12px; white-space:pre-wrap;${stNote ? "" : " display:none;"}">${esc(stNote)}</div>` +
+                `<div data-ps-meta style="margin-top:4px; opacity:.55; font-size:12px;${stMeta ? "" : " display:none;"}">${esc(stMeta)}</div>`;
 
 
               return `
-          <tr style="border-bottom:1px solid #f2f2f2;">
+          <tr data-ps-row="${esc(r.id)}" style="border-bottom:1px solid #f2f2f2;">
             <td style="padding:10px 12px; vertical-align:top;">
               <div style="font-weight:650;">${esc(r.name || "")}</div>
               <div style="opacity:.75; font-size:12px;">${esc(r.fachgebiet || "")}</div>
@@ -696,8 +731,8 @@
                 rec.status = null;
                 rec.statusUpdatedAt = new Date().toISOString();
                 saveDB(dbNow);
-                // Optional: UI-Note ausblenden -> am einfachsten rerendern
-                render();
+                updateItemFromDb(id, rec);
+                updateRowUi(id, rec);
                 return;
             }
 
@@ -711,7 +746,8 @@
             rec.statusUpdatedAt = new Date().toISOString();
             saveDB(dbNow);
 
-            render();
+            updateItemFromDb(id, rec);
+            updateRowUi(id, rec);
         });
 
 
