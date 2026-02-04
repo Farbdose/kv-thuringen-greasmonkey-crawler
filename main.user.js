@@ -652,19 +652,27 @@
   </select>
 `;
 
-              const stNote = r.status?.note
-              ? `<div style="margin-top:6px; opacity:.8; font-size:12px; white-space:pre-wrap;">${esc(r.status.note)}</div>`
-  : "";
+              const noteText = r.status?.note || "";
+              const metaText = r.statusUpdatedAt ? new Date(r.statusUpdatedAt).toLocaleString() : "";
+              const stNote = `
+  <div data-ps-status-note="${esc(r.id)}"
+       style="margin-top:6px; opacity:.8; font-size:12px; white-space:pre-wrap; ${noteText ? "" : "display:none;"}">
+    ${esc(noteText)}
+  </div>
+`;
 
-              const stMeta = r.statusUpdatedAt
-              ? `<div style="margin-top:4px; opacity:.55; font-size:12px;">${esc(new Date(r.statusUpdatedAt).toLocaleString())}</div>`
-  : "";
+              const stMeta = `
+  <div data-ps-status-meta="${esc(r.id)}"
+       style="margin-top:4px; opacity:.55; font-size:12px; ${metaText ? "" : "display:none;"}">
+    ${esc(metaText)}
+  </div>
+`;
 
               const st = stSelect + stNote + stMeta;
 
 
               return `
-          <tr style="border-bottom:1px solid #f2f2f2;">
+          <tr data-ps-row-id="${esc(r.id)}" style="border-bottom:1px solid #f2f2f2;">
             <td style="padding:10px 12px; vertical-align:top;">
               <div style="font-weight:650;">${esc(r.name || "")}</div>
               <div style="opacity:.75; font-size:12px;">${esc(r.fachgebiet || "")}</div>
@@ -683,6 +691,34 @@
           </tr>
         `;
           }).join("");
+        }
+
+        function updateStatusUiInPlace(id, rec) {
+            const row = modal.querySelector(`tr[data-ps-row-id="${id}"]`);
+            if (!row) return;
+            const noteEl = row.querySelector(`[data-ps-status-note="${id}"]`);
+            const metaEl = row.querySelector(`[data-ps-status-meta="${id}"]`);
+            const noteText = rec.status?.note || "";
+            const metaText = rec.statusUpdatedAt ? new Date(rec.statusUpdatedAt).toLocaleString() : "";
+
+            if (noteEl) {
+                noteEl.textContent = noteText;
+                noteEl.style.display = noteText ? "" : "none";
+            }
+            if (metaEl) {
+                metaEl.textContent = metaText;
+                metaEl.style.display = metaText ? "" : "none";
+            }
+
+            const matchesFilters = applyFilter([rec]).length === 1;
+            if (!matchesFilters) {
+                row.remove();
+            }
+
+            const filtered = applyFilter(items);
+            $("#psMsg").textContent = (filterNow || filterText.trim() || filterStatus !== "ALL")
+                ? `${filtered.length} Treffer`
+                : "";
         }
 
         // Status-Dropdown pro Zeile: Änderung sofort speichern
@@ -705,8 +741,7 @@
                 rec.statusUpdatedAt = new Date().toISOString();
                 saveDB(dbNow);
                 updateItemFromDb(id, rec);
-                // Optional: UI-Note ausblenden -> am einfachsten rerendern
-                render();
+                updateStatusUiInPlace(id, rec);
                 return;
             }
 
@@ -721,7 +756,7 @@
             saveDB(dbNow);
 
             updateItemFromDb(id, rec);
-            render();
+            updateStatusUiInPlace(id, rec);
         });
 
 
