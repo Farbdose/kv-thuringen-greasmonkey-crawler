@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         KVT Arztsuche Psychologen – Sammler + Viewer + Auto-Runner + Status
+// @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
 // @version      3.0.1
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
@@ -13,8 +13,8 @@
 (() => {
     "use strict";
 
-    const LS_KEY = "psychologen_sammlung_v1";
-    const AUTO_KEY = "psychologen_autorun_v1";
+    const LS_KEY = "kvt_arztsuche_sammlung_v1";
+    const AUTO_KEY = "kvt_arztsuche_autorun_v1";
 
     // -------------------------
     // Helpers
@@ -535,7 +535,7 @@
 
         modal.innerHTML = `
       <div style="display:flex; gap:10px; align-items:center; padding:12px 14px; border-bottom:1px solid #e8e8e8;">
-        <div style="font-weight:700;">Psychologen-Sammlung</div>
+        <div style="font-weight:700;">Arztsuche-Sammlung</div>
         <div style="opacity:.7;" id="psCount"></div>
         <div style="flex:1;"></div>
         <input id="psSearch" placeholder="Suche (Name, Ort, Telefon, Fachgebiet, Angebote, Sprechzeiten, Status) …"
@@ -746,14 +746,14 @@
 
         $("#psExportJSON").onclick = () => {
             const dbNow = loadDB();
-            download("psychologen_sammlung.json", JSON.stringify(dbNow, null, 2));
+            download("arztsuche_sammlung.json", JSON.stringify(dbNow, null, 2));
         };
 
         $("#psExportCSV").onclick = () => {
             const dbNow = loadDB();
             const rows = Object.values(dbNow.items || {});
             rows.forEach(ensureRecordHasNewFields);
-            download("psychologen_sammlung.csv", toCSV(rows));
+            download("arztsuche_sammlung.csv", toCSV(rows));
         };
 
         $("#psClear").onclick = () => {
@@ -955,7 +955,7 @@
     // -------------------------
     // Menu commands
     // -------------------------
-    GM_registerMenuCommand("Psychologen-Sammlung anzeigen", openViewer);
+    GM_registerMenuCommand("Arztsuche-Sammlung anzeigen", openViewer);
     GM_registerMenuCommand("Liste: Auto-Open & Next (Start)", startListAutomation);
     GM_registerMenuCommand("Liste: Auto-Open & Next (Stop)", stopListAutomation);
 
