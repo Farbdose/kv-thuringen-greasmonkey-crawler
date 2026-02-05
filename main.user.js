@@ -8,6 +8,8 @@
 // @match        https://www.kv-thueringen.de/*
 // @run-at       document-idle
 // @grant        GM_registerMenuCommand
+// @grant        GM_xmlhttpRequest
+// @connect      api.qrserver.com
 // ==/UserScript==
 
 (() => {
@@ -95,11 +97,68 @@
         return cleaned.length >= 6 ? cleaned : null;
     }
 
+    const qrCodeDataUrlCache = new Map();
+
     function phoneQrCodeUrl(rawPhone) {
         const phone = extractPrimaryPhoneNumber(rawPhone);
         if (!phone) return null;
         const payload = encodeURIComponent(`tel:${phone}`);
         return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${payload}`;
+    }
+
+    function blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+            reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    function fetchQrCodeDataUrl(rawPhone) {
+        const phone = extractPrimaryPhoneNumber(rawPhone);
+        if (!phone) return Promise.resolve(null);
+        if (qrCodeDataUrlCache.has(phone)) return qrCodeDataUrlCache.get(phone);
+
+        const qrUrl = phoneQrCodeUrl(phone);
+        if (!qrUrl) return Promise.resolve(null);
+
+        const req = typeof GM_xmlhttpRequest === "function"
+            ? new Promise((resolve) => {
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    url: qrUrl,
+                    responseType: "blob",
+                    onload: async (resp) => {
+                        try {
+                            if (!resp?.response || resp.status < 200 || resp.status >= 300) return resolve(null);
+                            resolve(await blobToDataUrl(resp.response));
+                        } catch {
+                            resolve(null);
+                        }
+                    },
+                    onerror: () => resolve(null),
+                    ontimeout: () => resolve(null),
+                });
+            })
+            : Promise.resolve(null);
+
+        qrCodeDataUrlCache.set(phone, req);
+        return req;
+    }
+
+    async function populateQrCodes(scope) {
+        const imgs = Array.from(scope.querySelectorAll("img[data-ps-qr-phone]"));
+        await Promise.all(imgs.map(async (img) => {
+            const phone = img.getAttribute("data-ps-qr-phone");
+            if (!phone) return;
+            const dataUrl = await fetchQrCodeDataUrl(phone);
+            if (!dataUrl) {
+                img.remove();
+                return;
+            }
+            img.src = dataUrl;
+        }));
     }
 
     // -------------------------
@@ -702,8 +761,8 @@
             </td>
             <td style="padding:10px 12px; vertical-align:top;">
               <div>${esc(r.telefon || "")}</div>
-              ${phoneQrCodeUrl(r.telefon)
-        ? `<img src="${esc(phoneQrCodeUrl(r.telefon))}" alt="QR-Code für Telefonnummer ${esc(r.telefon || "")}" style="display:block; margin-top:8px; width:96px; height:96px; border:1px solid #ececec; border-radius:8px;" loading="lazy">`
+              ${extractPrimaryPhoneNumber(r.telefon)
+        ? `<img data-ps-qr-phone="${esc(r.telefon || "")}" alt="QR-Code für Telefonnummer ${esc(r.telefon || "")}" style="display:block; margin-top:8px; width:96px; height:96px; border:1px solid #ececec; border-radius:8px;" loading="lazy">`
         : ""}
             </td>
             <td style="padding:10px 12px; vertical-align:top;">
@@ -718,6 +777,8 @@
           </tr>
         `;
           }).join("");
+
+            populateQrCodes(body);
         }
 
         function updateStatusUiInPlace(id, rec) {
