@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.0.1
+// @version      3.1.0
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -78,6 +78,28 @@
         let h = 0;
         for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
         return "h" + h.toString(16);
+    }
+
+    function extractPrimaryPhoneNumber(rawPhone) {
+        const input = norm(rawPhone);
+        if (!input) return null;
+
+        const match = input.match(/(?:\+\d{1,3}[\s\-/]*)?(?:\(0\)\s*)?(?:\d[\s\-/()]*){5,}/);
+        if (!match) return null;
+
+        const cleaned = match[0]
+            .replace(/\(0\)/g, "0")
+            .replace(/[^\d+]/g, "")
+            .replace(/(?!^)\+/g, "");
+
+        return cleaned.length >= 6 ? cleaned : null;
+    }
+
+    function phoneQrCodeUrl(rawPhone) {
+        const phone = extractPrimaryPhoneNumber(rawPhone);
+        if (!phone) return null;
+        const payload = encodeURIComponent(`tel:${phone}`);
+        return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${payload}`;
     }
 
     // -------------------------
@@ -678,7 +700,12 @@
               <div style="opacity:.75; font-size:12px;">${esc(r.fachgebiet || "")}</div>
               <div style="opacity:.55; font-size:12px;">${esc(r.einrichtung || "")}</div>
             </td>
-            <td style="padding:10px 12px; vertical-align:top;">${esc(r.telefon || "")}</td>
+            <td style="padding:10px 12px; vertical-align:top;">
+              <div>${esc(r.telefon || "")}</div>
+              ${phoneQrCodeUrl(r.telefon)
+        ? `<img src="${esc(phoneQrCodeUrl(r.telefon))}" alt="QR-Code für Telefonnummer ${esc(r.telefon || "")}" style="display:block; margin-top:8px; width:96px; height:96px; border:1px solid #ececec; border-radius:8px;" loading="lazy">`
+        : ""}
+            </td>
             <td style="padding:10px 12px; vertical-align:top;">
               <div>${esc(r.strasse || "")}</div>
               <div style="opacity:.8;">${esc(r.plzOrt || "")}</div>
