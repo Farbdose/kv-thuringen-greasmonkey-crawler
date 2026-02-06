@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.10
+// @version      3.1.11
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -553,6 +553,10 @@
         #psModalTable th {
           text-align: left;
           font-weight: 600;
+          position: sticky;
+          top: 0;
+          background: #fafafa;
+          z-index: 1;
         }
         .ps-table-wrap {
           flex: 1;
@@ -616,7 +620,7 @@
       <div class="ps-table-wrap">
         <table id="psModalTable">
           <thead>
-            <tr style="position:sticky; top:0; background:#fafafa; border-bottom:1px solid #eaeaea;">
+            <tr style="border-bottom:1px solid #eaeaea;">
               <th class="ps-col-name">Name</th>
               <th class="ps-col-phone">Telefon</th>
               <th class="ps-col-address">Anschrift</th>
