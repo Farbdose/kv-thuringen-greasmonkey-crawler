@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.4
+// @version      3.1.5
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -362,6 +362,13 @@
     // Viewer + Filters (Now + Status)
     // -------------------------
     const DAY_KEYS_JS = ["so", "mo", "di", "mi", "do", "fr", "sa"]; // JS: 0=So ... 6=Sa
+    const HIDDEN_SPRECHZEIT_HINTS = new Set([norm("Telefonische Erreichbarkeit").toLowerCase()]);
+
+    function displaySprechzeitHint(rawHint) {
+        const trimmed = norm(rawHint);
+        if (!trimmed) return "";
+        return HIDDEN_SPRECHZEIT_HINTS.has(trimmed.toLowerCase()) ? "" : trimmed;
+    }
 
     function timeToMin(hhmm) {
         const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm || "");
@@ -401,11 +408,15 @@
             if (!arr.length) continue;
 
             const lines = arr.map(w => {
-                if (w.from && w.to) return `${w.from}-${w.to}${w.hinweis ? ` (${w.hinweis})` : ""}`;
-                return w.hinweis ? `${w.hinweis}` : "(unbekannt)";
-            });
+                const hint = displaySprechzeitHint(w.hinweis);
+                if (w.from && w.to) return `${w.from}-${w.to}${hint ? ` (${hint})` : ""}`;
+                if (hint) return `${hint}`;
+                return "";
+            }).filter(Boolean);
 
-            chunks.push(`${label}: ${lines.join(" | ")}`);
+            if (lines.length) {
+                chunks.push(`${label}: ${lines.join(" | ")}`);
+            }
         }
         return chunks.join("\n");
     }
