@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.12
+// @version      3.1.14
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -435,6 +435,129 @@
         return rec.status?.code || "";
     }
 
+    function normalizeHonorific(value) {
+        if (!value) return "";
+        const lowered = value.toLowerCase();
+        if (lowered === "herrn") return "Herr";
+        if (lowered === "herr") return "Herr";
+        if (lowered === "frau") return "Frau";
+        return value;
+    }
+
+    const TITLE_TOKENS = [
+        "Prof. Dr. med.",
+        "Prof. Dr.",
+        "Priv.-Doz.",
+        "Dr. med.",
+        "Dr. med",
+        "Dr.",
+        "Dipl.-Med.",
+        "Dipl.-Med",
+        "Dipl.-Psych.",
+        "Dipl.-Psych",
+        "Dipl.-Päd.",
+        "Dipl.-Päd",
+        "Dipl.-Soz.",
+        "Dipl.-Soz",
+        "Dipl.-Kfm.",
+        "Dipl.-Kfm",
+        "Dipl.-Ing.",
+        "Dipl.-Ing",
+        "Prof.",
+        "PD"
+    ];
+
+    function matchTitleAtStart(raw) {
+        const text = norm(raw);
+        if (!text) return null;
+        const sorted = TITLE_TOKENS.slice().sort((a, b) => b.length - a.length);
+        for (const token of sorted) {
+            if (text === token) return { title: token, rest: "" };
+            if (text.startsWith(token + " ")) {
+                return { title: token, rest: text.slice(token.length).trim() };
+            }
+        }
+        return null;
+    }
+
+    function escapeRegExp(value) {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+
+    function extractHonorificTitleFromEinrichtung(einrichtung, baseName) {
+        const cleanEinrichtung = norm(einrichtung);
+        const cleanBaseName = norm(baseName);
+        if (!cleanEinrichtung || !cleanBaseName) return { honorific: "", title: "" };
+        const match = cleanEinrichtung.match(new RegExp(escapeRegExp(cleanBaseName), "i"));
+        if (!match || match.index == null) return { honorific: "", title: "" };
+
+        const prefix = cleanEinrichtung.slice(0, match.index).trim();
+        const honorificMatches = Array.from(prefix.matchAll(/\b(Frau|Herrn|Herr)\b/gi));
+        if (!honorificMatches.length) return { honorific: "", title: "" };
+
+        const lastMatch = honorificMatches[honorificMatches.length - 1];
+        const honorific = normalizeHonorific(lastMatch[1]);
+        const titleCandidate = prefix
+            .slice(lastMatch.index + lastMatch[0].length)
+            .trim()
+            .replace(/^[,\s]+/, "")
+            .replace(/[,()\s]+$/g, "");
+
+        const titleMatch = matchTitleAtStart(titleCandidate);
+        const title = titleMatch ? titleMatch.title : "";
+
+        return { honorific, title };
+    }
+
+    function derivePersonLineParts(rec) {
+        const rawName = norm(rec.name);
+        let honorific = "";
+        let title = "";
+        let baseName = rawName;
+
+        const honorificMatch = rawName.match(/^(Frau|Herrn|Herr)\b\s*/i);
+        if (honorificMatch) {
+            honorific = normalizeHonorific(honorificMatch[1]);
+            baseName = rawName.slice(honorificMatch[0].length).trim();
+        }
+
+        const titleMatch = matchTitleAtStart(baseName);
+        if (titleMatch) {
+            title = titleMatch.title;
+            baseName = titleMatch.rest;
+        }
+
+        if ((!honorific || !title) && rec.einrichtung) {
+            const extracted = extractHonorificTitleFromEinrichtung(rec.einrichtung, baseName);
+            if (!honorific && extracted.honorific) honorific = extracted.honorific;
+            if (!title && extracted.title) title = extracted.title;
+        }
+
+        return {
+            honorific: honorific || "Herr/Frau",
+            title,
+            name: baseName || rawName
+        };
+    }
+
+    function toPlainText(rows) {
+        return rows.map(rec => {
+            ensureRecordHasNewFields(rec);
+            const { honorific, title, name } = derivePersonLineParts(rec);
+            const header = [honorific, title, name].filter(Boolean).join(" ").trim();
+            const statusDate = rec.statusUpdatedAt ? new Date(rec.statusUpdatedAt).toLocaleString() : "";
+            const statusText = statusLabel(rec);
+
+            return [
+                header,
+                rec.fachgebiet || "",
+                rec.anschrift || "",
+                rec.telefon || "",
+                `Angerufen am ${statusDate}, Ergebnis: ${statusText}`
+            ].join("\n");
+        }).join("\n\nnächster Eintrag\n\n");
+    }
+
     function toCSV(rows) {
         const cols = [
             "name", "telefon", "fachgebiet", "einrichtung", "strasse", "plzOrt", "anschrift",
@@ -612,6 +735,7 @@
 
         <button id="psExportJSON" style="padding:8px 10px; border:1px solid #d9d9d9; border-radius:10px; background:#fff; cursor:pointer;">Export JSON</button>
         <button id="psExportCSV" style="padding:8px 10px; border:1px solid #d9d9d9; border-radius:10px; background:#fff; cursor:pointer;">Export CSV</button>
+        <button id="psExportText" style="padding:8px 10px; border:1px solid #d9d9d9; border-radius:10px; background:#fff; cursor:pointer;">Export Text</button>
         <button id="psClear" style="padding:8px 10px; border:1px solid #ffcccc; border-radius:10px; background:#fff; cursor:pointer;">Alles löschen</button>
 
         <div id="psMsg" style="margin-left:auto; opacity:.75;"></div>
@@ -864,15 +988,31 @@
         });
 
         $("#psExportJSON").onclick = () => {
+            const filtered = applyFilter(items);
             const dbNow = loadDB();
-            download("arztsuche_sammlung.json", JSON.stringify(dbNow, null, 2));
+            const filteredItems = {};
+            filtered.forEach(rec => {
+                filteredItems[rec.id] = rec;
+            });
+            const payload = {
+                version: dbNow.version || 1,
+                createdAt: dbNow.createdAt || null,
+                updatedAt: dbNow.updatedAt || null,
+                items: filteredItems
+            };
+            download("arztsuche_sammlung.json", JSON.stringify(payload, null, 2));
         };
 
         $("#psExportCSV").onclick = () => {
-            const dbNow = loadDB();
-            const rows = Object.values(dbNow.items || {});
-            rows.forEach(ensureRecordHasNewFields);
-            download("arztsuche_sammlung.csv", toCSV(rows));
+            const filtered = applyFilter(items);
+            filtered.forEach(ensureRecordHasNewFields);
+            download("arztsuche_sammlung.csv", toCSV(filtered));
+        };
+
+        $("#psExportText").onclick = () => {
+            const filtered = applyFilter(items);
+            filtered.forEach(ensureRecordHasNewFields);
+            download("arztsuche_sammlung.txt", toPlainText(filtered));
         };
 
         $("#psClear").onclick = () => {
