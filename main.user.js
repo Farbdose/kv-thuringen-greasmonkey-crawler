@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.7
+// @version      3.1.9
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -497,21 +497,31 @@
         let filterText = "";
         let filterStatus = "ALL"; // ALL | NONE | <status code>
 
+        const rootEl = document.documentElement;
+        rootEl.style.cssText = "width:100%; height:100%; margin:0; padding:0;";
+        document.body.style.cssText = "width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#fff;";
+        document.body.innerHTML = "";
+
         const overlay = document.createElement("div");
         overlay.style.cssText = `
-      position: fixed; inset: 0; z-index: 999999;
-      background: rgba(0,0,0,.35);
-      display: flex; align-items: center; justify-content: center;
-      padding: 18px;
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #fff;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
+      padding: 0;
+      margin: 0;
     `;
 
         const modal = document.createElement("div");
         modal.style.cssText = `
-      width: min(1280px, 98vw);
-      height: min(820px, 92vh);
+      width: 100%;
+      height: 100%;
       background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 18px 60px rgba(0,0,0,.35);
+      border-radius: 0;
+      box-shadow: none;
       overflow: hidden;
       font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       color: #111;
@@ -823,7 +833,6 @@
 
 
         $("#psClose").onclick = () => overlay.remove();
-        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
 
         $("#psSearch").addEventListener("input", (e) => {
             filterText = e.target.value || "";
