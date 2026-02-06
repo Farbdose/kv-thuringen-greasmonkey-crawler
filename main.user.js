@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.8
+// @version      3.1.9
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -497,12 +497,22 @@
         let filterText = "";
         let filterStatus = "ALL"; // ALL | NONE | <status code>
 
+        const rootEl = document.documentElement;
+        rootEl.style.cssText = "width:100%; height:100%; margin:0; padding:0;";
+        document.body.style.cssText = "width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#fff;";
+        document.body.innerHTML = "";
+
         const overlay = document.createElement("div");
         overlay.style.cssText = `
-      position: fixed; inset: 0; z-index: 999999;
+      position: relative;
+      width: 100vw;
+      height: 100vh;
       background: #fff;
-      display: flex; align-items: stretch; justify-content: stretch;
+      display: flex;
+      align-items: stretch;
+      justify-content: stretch;
       padding: 0;
+      margin: 0;
     `;
 
         const modal = document.createElement("div");
@@ -823,7 +833,6 @@
 
 
         $("#psClose").onclick = () => overlay.remove();
-        overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
 
         $("#psSearch").addEventListener("input", (e) => {
             filterText = e.target.value || "";
