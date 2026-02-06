@@ -349,6 +349,7 @@
     // Manual status on details pages
     // -------------------------
     const STATUS_OPTIONS = [
+        { code: "nicht_erreichbar", label: "Nicht erreichbar" },
         { code: "keine_neuen_patienten", label: "Keine neuen Patienten" },
         { code: "keine_videosprechstunde", label: "Keine Videosprechstunde" },
         { code: "urlaub", label: "Urlaub" },
@@ -388,7 +389,7 @@
             "Therapeut-Status setzen:\n\n" +
             STATUS_OPTIONS.map((o, i) => `${i + 1}) ${o.label}`).join("\n") +
             `\n\nAktuell: ${current}\n\n` +
-            "Zahl (1-4) eingeben. Leer = abbrechen. 0 = Status löschen."
+            `Zahl (1-${STATUS_OPTIONS.length}) eingeben. Leer = abbrechen. 0 = Status löschen.`
         );
 
         if (choice == null || choice.trim() === "") return;
