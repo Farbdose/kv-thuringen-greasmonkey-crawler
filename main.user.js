@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.9
+// @version      3.1.10
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -500,19 +500,21 @@
         const rootEl = document.documentElement;
         rootEl.style.cssText = "width:100%; height:100%; margin:0; padding:0;";
         document.body.style.cssText = "width:100%; height:100%; margin:0; padding:0; overflow:hidden; background:#fff;";
+        document.head.innerHTML = "<title>Arztsuche-Sammlung</title>";
         document.body.innerHTML = "";
 
         const overlay = document.createElement("div");
         overlay.style.cssText = `
       position: relative;
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
       background: #fff;
       display: flex;
       align-items: stretch;
       justify-content: stretch;
       padding: 0;
       margin: 0;
+      overflow: hidden;
     `;
 
         const modal = document.createElement("div");
@@ -526,6 +528,7 @@
       font: 14px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       color: #111;
       display: flex; flex-direction: column;
+      min-width: 0;
     `;
 
         const statusOptionsHtml =
@@ -545,17 +548,26 @@
         #psModalTable td {
           padding: 8px 10px;
           vertical-align: top;
+          min-width: 0;
         }
         #psModalTable th {
           text-align: left;
           font-weight: 600;
+        }
+        .ps-table-wrap {
+          flex: 1;
+          overflow: auto;
+          min-width: 0;
+        }
+        .ps-table-wrap table {
+          width: 100%;
         }
         .ps-col-name { width: 180px; }
         .ps-col-phone { width: 140px; }
         .ps-col-address { width: 160px; }
         .ps-col-offers { width: 220px; }
         .ps-col-status { width: 220px; }
-        .ps-col-hours { width: 320px; }
+        .ps-col-hours { width: 160px; }
         .ps-col-now { width: 70px; text-align: center; }
         .ps-col-link { width: 56px; text-align: center; }
         .ps-wrap {
@@ -583,7 +595,6 @@
         <div style="flex:1;"></div>
         <input id="psSearch" placeholder="Suche (Name, Ort, Telefon, Fachgebiet, Angebote, Sprechzeiten, Status) …"
           style="width:min(520px, 50vw); padding:8px 10px; border:1px solid #d9d9d9; border-radius:10px;">
-        <button id="psClose" style="padding:8px 10px; border:1px solid #d9d9d9; border-radius:10px; background:#fff; cursor:pointer;">Schließen</button>
       </div>
 
       <div style="display:flex; gap:10px; padding:10px 14px; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; align-items:center;">
@@ -602,7 +613,7 @@
         <div id="psMsg" style="margin-left:auto; opacity:.75;"></div>
       </div>
 
-      <div style="flex:1; overflow:auto;">
+      <div class="ps-table-wrap">
         <table id="psModalTable">
           <thead>
             <tr style="position:sticky; top:0; background:#fafafa; border-bottom:1px solid #eaeaea;">
@@ -831,8 +842,6 @@
             updateStatusUiInPlace(id, rec);
         });
 
-
-        $("#psClose").onclick = () => overlay.remove();
 
         $("#psSearch").addEventListener("input", (e) => {
             filterText = e.target.value || "";
