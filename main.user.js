@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.14
+// @version      3.1.16
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -547,15 +547,16 @@
             const header = [honorific, title, name].filter(Boolean).join(" ").trim();
             const statusDate = rec.statusUpdatedAt ? new Date(rec.statusUpdatedAt).toLocaleString() : "";
             const statusText = statusLabel(rec);
+            const statusNote = rec.status?.note ? ` (Notiz: ${rec.status.note})` : "";
 
             return [
                 header,
                 rec.fachgebiet || "",
                 rec.anschrift || "",
                 rec.telefon || "",
-                `Angerufen am ${statusDate}, Ergebnis: ${statusText}`
+                `Angerufen am ${statusDate}, Ergebnis: ${statusText}${statusNote}`
             ].join("\n");
-        }).join("\n\nnächster Eintrag\n\n");
+        }).join("\n\n");
     }
 
     function toCSV(rows) {
