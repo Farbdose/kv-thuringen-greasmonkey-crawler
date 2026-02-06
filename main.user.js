@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.6
+// @version      3.1.7
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -540,11 +540,12 @@
           text-align: left;
           font-weight: 600;
         }
-        .ps-col-name { width: 220px; }
+        .ps-col-name { width: 180px; }
         .ps-col-phone { width: 140px; }
-        .ps-col-address { width: 200px; }
+        .ps-col-address { width: 160px; }
         .ps-col-offers { width: 220px; }
         .ps-col-status { width: 220px; }
+        .ps-col-hours { width: 320px; }
         .ps-col-now { width: 70px; text-align: center; }
         .ps-col-link { width: 56px; text-align: center; }
         .ps-wrap {
@@ -600,7 +601,7 @@
               <th class="ps-col-address">Anschrift</th>
               <th class="ps-col-offers">Leistungsangebote</th>
               <th class="ps-col-status">Status</th>
-              <th class="ps-wrap">Sprechzeiten (Mo–So)</th>
+              <th class="ps-wrap ps-col-hours">Sprechzeiten (Mo–So)</th>
               <th class="ps-col-now">Jetzt</th>
               <th class="ps-col-link">Link</th>
             </tr>
@@ -725,7 +726,7 @@
             </td>
             <td class="ps-wrap">${esc(formatLeistungsangebote(r))}</td>
             <td>${st}</td>
-            <td class="ps-wrap">${esc(sprech || "")}</td>
+            <td class="ps-wrap ps-col-hours">${esc(sprech || "")}</td>
             <td class="ps-col-now">${nowCell(r)}</td>
             <td class="ps-col-link">${link}</td>
           </tr>
