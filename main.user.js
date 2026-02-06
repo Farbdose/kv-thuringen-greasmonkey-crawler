@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         KVT Arztsuche – Sammler + Viewer + Auto-Runner + Status
 // @namespace    https://example.local/
-// @version      3.1.2
+// @version      3.1.4
 // @updateURL    https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @downloadURL  https://raw.githubusercontent.com/Farbdose/kv-thuringen-greasmonkey-crawler/main/main.user.js
 // @description  Sammelt Details aus KVT-Arztsuche-Detailseiten (inkl. Mo–So-Zeitfenster, Leistungsangebote) in LocalStorage. Viewer mit Suche/Export/Filter (Jetzt Sprechzeit + Status). Auto-Runner auf Übersichtsseiten: ein Popup, alle Links nacheinander per Redirect, dann nächste Seite klicken.
@@ -346,7 +346,7 @@
     }
 
     // -------------------------
-    // Manual status on details pages
+    // Status options
     // -------------------------
     const STATUS_OPTIONS = [
         { code: "nicht_erreichbar", label: "Nicht erreichbar" },
@@ -357,65 +357,6 @@
         { code: "erstgespraech_in_person_barrierefrei", label: "Erstgespräch in Person ist behindertengerecht" },
         { code: "online_ohne_in_person_moeglich", label: "Online-Sprechstunde ohne In-Person-Gespräch möglich" },
     ];
-
-    function upsertStatusForCurrentDetailsPage() {
-        if (!isDetailsPage()) {
-            toast("Status: Du bist nicht auf einer Detailseite.");
-            return;
-        }
-
-        const name = extractName();
-        if (!name) {
-            toast("Status: Kein Name gefunden.");
-            return;
-        }
-
-        const id = normIdFromName(name);
-        const db = loadDB();
-        const rec = db.items[id];
-
-        if (!rec) {
-            toast("Status: Eintrag ist noch nicht in der Sammlung (Seite einmal laden, dann speichern).");
-            return;
-        }
-
-        ensureRecordHasNewFields(rec);
-
-        const current = rec.status?.code
-        ? (STATUS_OPTIONS.find(o => o.code === rec.status.code)?.label || rec.status.code)
-        : "(kein Status)";
-
-        const choice = prompt(
-            "Therapeut-Status setzen:\n\n" +
-            STATUS_OPTIONS.map((o, i) => `${i + 1}) ${o.label}`).join("\n") +
-            `\n\nAktuell: ${current}\n\n` +
-            `Zahl (1-${STATUS_OPTIONS.length}) eingeben. Leer = abbrechen. 0 = Status löschen.`
-        );
-
-        if (choice == null || choice.trim() === "") return;
-
-        const n = Number(choice.trim());
-        if (n === 0) {
-            rec.status = null;
-            rec.statusUpdatedAt = new Date().toISOString();
-            saveDB(db);
-            toast("Status gelöscht.");
-            return;
-        }
-
-        const opt = STATUS_OPTIONS[n - 1];
-        if (!opt) {
-            toast("Status: Ungültige Auswahl.");
-            return;
-        }
-
-        const note = prompt("Optional: kurze Notiz (z.B. Datum/Uhrzeit, Name am Telefon). Leer = keine.") ?? "";
-        rec.status = { code: opt.code, label: opt.label, note: note.trim() || null };
-        rec.statusUpdatedAt = new Date().toISOString();
-        saveDB(db);
-
-        toast(`Status gespeichert: ${opt.label}`);
-    }
 
     // -------------------------
     // Viewer + Filters (Now + Status)
@@ -694,10 +635,11 @@
               const noteText = r.status?.note || "";
               const metaText = r.statusUpdatedAt ? new Date(r.statusUpdatedAt).toLocaleString() : "";
               const stNote = `
-  <div data-ps-status-note="${esc(r.id)}"
-       style="margin-top:6px; opacity:.8; font-size:12px; white-space:pre-wrap; ${noteText ? "" : "display:none;"}">
-    ${esc(noteText)}
-  </div>
+  <textarea data-ps-status-note="${esc(r.id)}"
+       placeholder="Notiz (z.B. Datum/Uhrzeit, Name am Telefon)"
+       style="margin-top:6px; width:100%; min-height:54px; padding:6px 8px; border:1px solid #e2e2e2; border-radius:8px; font:12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; resize:vertical;"
+       ${r.status ? "" : "disabled"}
+  >${esc(noteText)}</textarea>
 `;
 
               const stMeta = `
@@ -746,8 +688,8 @@
             const metaText = rec.statusUpdatedAt ? new Date(rec.statusUpdatedAt).toLocaleString() : "";
 
             if (noteEl) {
-                noteEl.textContent = noteText;
-                noteEl.style.display = noteText ? "" : "none";
+                noteEl.value = noteText;
+                noteEl.toggleAttribute("disabled", !rec.status);
             }
             if (metaEl) {
                 metaEl.textContent = metaText;
@@ -796,6 +738,27 @@
             const oldNote = rec.status?.note || null;
 
             rec.status = { code: opt.code, label: opt.label, note: oldNote };
+            rec.statusUpdatedAt = new Date().toISOString();
+            saveDB(dbNow);
+
+            updateItemFromDb(id, rec);
+            updateStatusUiInPlace(id, rec);
+        });
+
+        $("#psBody").addEventListener("input", (e) => {
+            const noteField = e.target;
+            if (!(noteField instanceof HTMLTextAreaElement)) return;
+            const id = noteField.getAttribute("data-ps-status-note");
+            if (!id) return;
+
+            const dbNow = loadDB();
+            const rec = dbNow.items?.[id];
+            if (!rec || !rec.status) return;
+
+            ensureRecordHasNewFields(rec);
+
+            const nextNote = noteField.value.trim() || null;
+            rec.status = { ...rec.status, note: nextNote };
             rec.statusUpdatedAt = new Date().toISOString();
             saveDB(dbNow);
 
@@ -1045,8 +1008,6 @@
         }
         collectFromDetailsPage();
     });
-
-    GM_registerMenuCommand("Detail: Status nach Telefonat setzen", upsertStatusForCurrentDetailsPage);
 
     GM_registerMenuCommand("Sammlung zurücksetzen (löschen)", () => {
         if (!confirm("Wirklich ALLE gespeicherten Einträge löschen?")) return;
