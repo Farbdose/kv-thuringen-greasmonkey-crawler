@@ -525,6 +525,47 @@
               STATUS_OPTIONS.map(o => `<option value="${esc(o.code)}">${esc(o.label)}</option>`).join("");
 
         modal.innerHTML = `
+      <style>
+        #psModalTable {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        #psModalTable th,
+        #psModalTable td {
+          padding: 8px 10px;
+          vertical-align: top;
+        }
+        #psModalTable th {
+          text-align: left;
+          font-weight: 600;
+        }
+        .ps-col-name { width: 220px; }
+        .ps-col-phone { width: 140px; }
+        .ps-col-address { width: 200px; }
+        .ps-col-offers { width: 220px; }
+        .ps-col-status { width: 220px; }
+        .ps-col-now { width: 70px; text-align: center; }
+        .ps-col-link { width: 56px; text-align: center; }
+        .ps-wrap {
+          white-space: normal;
+          word-break: break-word;
+          hyphens: auto;
+        }
+        .ps-link {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          border: 1px solid #e0e0e0;
+          text-decoration: none;
+          font-size: 14px;
+          color: #111;
+          background: #fff;
+        }
+      </style>
       <div style="display:flex; gap:10px; align-items:center; padding:12px 14px; border-bottom:1px solid #e8e8e8;">
         <div style="font-weight:700;">Arztsuche-Sammlung</div>
         <div style="opacity:.7;" id="psCount"></div>
@@ -551,17 +592,17 @@
       </div>
 
       <div style="flex:1; overflow:auto;">
-        <table style="width:100%; border-collapse:collapse;">
+        <table id="psModalTable">
           <thead>
             <tr style="position:sticky; top:0; background:#fafafa; border-bottom:1px solid #eaeaea;">
-              <th style="text-align:left; padding:10px 12px; width: 260px;">Name</th>
-              <th style="text-align:left; padding:10px 12px; width: 160px;">Telefon</th>
-              <th style="text-align:left; padding:10px 12px; width: 280px;">Anschrift</th>
-              <th style="text-align:left; padding:10px 12px; width: 280px;">Leistungsangebote</th>
-              <th style="text-align:left; padding:10px 12px; width: 260px;">Status</th>
-              <th style="text-align:left; padding:10px 12px;">Sprechzeiten (Mo–So)</th>
-              <th style="text-align:left; padding:10px 12px; width: 110px;">Jetzt</th>
-              <th style="text-align:left; padding:10px 12px; width: 120px;">Link</th>
+              <th class="ps-col-name">Name</th>
+              <th class="ps-col-phone">Telefon</th>
+              <th class="ps-col-address">Anschrift</th>
+              <th class="ps-col-offers">Leistungsangebote</th>
+              <th class="ps-col-status">Status</th>
+              <th class="ps-wrap">Sprechzeiten (Mo–So)</th>
+              <th class="ps-col-now">Jetzt</th>
+              <th class="ps-col-link">Link</th>
             </tr>
           </thead>
           <tbody id="psBody"></tbody>
@@ -630,7 +671,9 @@
             const body = $("#psBody");
             body.innerHTML = filtered.map(r => {
                 const sprech = formatDayWindows(r);
-                const link = r.sourceUrl ? `<a href="${esc(r.sourceUrl)}" target="_blank" rel="noreferrer">öffnen</a>` : "";
+                const link = r.sourceUrl
+                    ? `<a class="ps-link" href="${esc(r.sourceUrl)}" target="_blank" rel="noreferrer" title="Detailseite öffnen" aria-label="Detailseite öffnen">↗</a>`
+                    : "";
                 const stSelect = `
   <select data-ps-id="${esc(r.id)}"
           style="width:100%; padding:6px 8px; border:1px solid #d9d9d9; border-radius:10px; background:#fff;">
@@ -665,26 +708,26 @@
 
               return `
           <tr data-ps-row-id="${esc(r.id)}" style="border-bottom:1px solid #f2f2f2;">
-            <td style="padding:10px 12px; vertical-align:top;">
+            <td>
               <div style="font-weight:650;">${esc(r.name || "")}</div>
               <div style="opacity:.75; font-size:12px;">${esc(r.fachgebiet || "")}</div>
               <div style="opacity:.55; font-size:12px;">${esc(r.einrichtung || "")}</div>
             </td>
-            <td style="padding:10px 12px; vertical-align:top;">
+            <td>
               <div>${esc(r.telefon || "")}</div>
               ${phoneQrCodeDataUrl(r.telefon)
-        ? `<img src="${esc(phoneQrCodeDataUrl(r.telefon))}" alt="QR-Code für Telefonnummer ${esc(r.telefon || "")}" style="display:block; margin-top:8px; width:96px; height:96px; border:1px solid #ececec; border-radius:8px;" loading="lazy">`
+        ? `<img src="${esc(phoneQrCodeDataUrl(r.telefon))}" alt="QR-Code für Telefonnummer ${esc(r.telefon || "")}" style="display:block; margin-top:6px; width:80px; height:80px; border:1px solid #ececec; border-radius:8px;" loading="lazy">`
         : ""}
             </td>
-            <td style="padding:10px 12px; vertical-align:top;">
+            <td class="ps-wrap">
               <div>${esc(r.strasse || "")}</div>
               <div style="opacity:.8;">${esc(r.plzOrt || "")}</div>
             </td>
-            <td style="padding:10px 12px; vertical-align:top; white-space:pre-wrap;">${esc(formatLeistungsangebote(r))}</td>
-            <td style="padding:10px 12px; vertical-align:top;">${st}</td>
-            <td style="padding:10px 12px; vertical-align:top; white-space:pre-wrap;">${esc(sprech || "")}</td>
-            <td style="padding:10px 12px; vertical-align:top;">${nowCell(r)}</td>
-            <td style="padding:10px 12px; vertical-align:top;">${link}</td>
+            <td class="ps-wrap">${esc(formatLeistungsangebote(r))}</td>
+            <td>${st}</td>
+            <td class="ps-wrap">${esc(sprech || "")}</td>
+            <td class="ps-col-now">${nowCell(r)}</td>
+            <td class="ps-col-link">${link}</td>
           </tr>
         `;
           }).join("");
